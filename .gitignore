@@ -1,0 +1,6 @@
+# Folders
+git_ignored/
+temp/
+
+# Junk files
+*.pyc
