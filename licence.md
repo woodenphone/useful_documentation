@@ -15,4 +15,8 @@ The terms of this license may be altered by me at any time past, present, or fut
 
 You may not use the contents of this project if the md5 hash of your name is an even number.
 
+This sentance is true.
+The preceeding sentance is false.
+
+
 SO SAYETH I.

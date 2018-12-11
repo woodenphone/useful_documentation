@@ -12,7 +12,7 @@ That sort of file.
 # Linux
 For Linux and potentially other *nix environments.
 ## Linux CLI
-# TODO
+TODO
 less
 more
 nano
