@@ -25,22 +25,34 @@ Remembers what you had open.
 Has folder browser subpanel. (Drag folder onto left side of window.)
 Paid version is nice.
 
+
 ### Notepad
 Comes with windows.
 Very basic.
 Funny handling of newline/carriage returns.
+
 
 ### Wordpad
 Comes with windows.
 Very basic.
 Funny handling of newline/carriage returns.
 
+
 ### Microsoft Office
 TODO
+MS Office
 Shitty proprietary file format garbage.
+(Keep copies of your old versions just in case of format deprication.)
+Very popular in business.
+
 
 ### Libre/Open/Star/EtcOffice Writer
 TODO
+Alternative to MS Office.
+Open source probably.
+
+
+
 # Linux
 
 ## Linux CLI
