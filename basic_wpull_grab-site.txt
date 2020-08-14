@@ -1,0 +1,101 @@
+basic_wpull_grab-site.txt
+BY: Ctrl-S 2020-08
+
+
+
+== Basic preparation ==
+Update repository info and packages:
+$ sudo apt- update && sudo apt upgrade -y
+Install tools:
+$ sudo apt install -y curl wget python python-pip python3 python3-pip git screen tmux
+
+
+== wpull install ==
+Requires specific prerequisites.
+$ sudo apt install -y python3 python3-pip git
+Make a new dir for the wpull venv.
+$ mkdir -vp "/home/USER/wpull"
+Copy script files into this new dir.
+Set up VENV for wpull:
+$ python3 -m venv make_wpull_work
+$ source make_wpull_work/bin/activate
+$ pip3 install tornado==4.5.3
+$ pip3 install html5lib==0.9999
+$ pip3 install wpull
+Test if wpull runs normally.
+$ wpull 
+You should get the help text from wpull if it worked. (i.e. wpull printed help and exited due to no work being given to it.)
+
+
+== wpull basic usage ==
+Currently wpull has somewhat particular dependancies, which we can meet by installing them in a python virtual environment (venv)
+Go into wpull dir.
+$ cd "/home/USER/wpull"
+Ensure wpull venv is in use.
+$ source make_wpull_work/bin/activate
+Do whatever it is you want to do with wpull
+$ wpull ARGS
+You can use wpull from scripts and stuff like this too.
+$ python3 some_script_calling_wpull ARGS
+
+
+
+== grab-site install ==
+$ git clone GRABSITE_REPO
+== grab-site usage ==
+Requires gs-server
+$ gs-server
+Invoke grab-site
+$ grab-site ARGS
+
+Common args:
+--1 -> depth of 1.
+--input-file="/home/USER/links.txt" -> Use a file to specify start URLs instead of command-line.
+--concurrency=2 -> This many maximum simultaneous downloads.
+--delay=750 -> Wait this long between downloads.
+--no-dupespotter -> Disable dupespotter, may be a bad idea, know what it does before using this one.
+
+
+== more advanced grab-site ==
+=== Small VPS HDD ===
+Run grab-site in a way that allows regular moving of the done parts of a still runing job off the machine
+Create a dir to put the finished WARC files into
+I like to put things in subdirs based on what the job is
+Substitute THING_NAME and HOSTNAME for your own values.
+It is assumed that moving a file from one filepath to another is instantaneous.
+
+==== Prep ====
+Create the dirs for grab-site, as it will not create them on its own.
+$ mkdir -vp ~/to-HOSTNAME/THING_NAME/warcs
+$ mkdir -vp ~/grab-site/
+
+==== grab-site ====
+Extra arguments to tell grab-site to move finished WARC files
+` --finished-warc-dir="/home/USER/to-HOSTNAME/THING_NAME/warcs" `
+Note that this is a single argument with an equals sign marking the start of the value being given.
+
+==== rsync ====
+Periodic file move:
+Run this in a loop to move anything
+Try to use full absolute filepaths rather than relative filepaths.
+The trailing slash on the source filepath matters, it specifies to put the contents of the dir into a subdir.
+'''You can think of a trailing / on a source as  meaning
+"copy  the  contents of this directory" as opposed to "copy the directory by name"'''
+- http://manpages.ubuntu.com/manpages/precise/man1/rsync.1.html
+
+$ rsync --verbose --progress --archive --compress --remove-source-files --partial --partial-dir=.rsync-partial --filter=R  .rsync-partial/ --itemize-changes --progress --human-readable --bwlimit=500 --rsh=ssh -p 22 apps@198.199.122.22:/home/USER/to-HOSTNAME/ /STORAGE_FILEPATH/to-HOSTNAME
+
+Final cleanup:
+Run this after grab-site is finished to move the rest of the grab-site files.
+$ mv  "/home/USER/grab-site/THING_NAME/" "/home/USER/to-HOSTNAME/THING_NAME/""
+The looping rsync will then move it for you
+
+
+=== pause and resume grab-site based on disk space remaining ===
+This BASH script measures the remaining disk space and then sends a unix signal to the process that halts or resumes execution.
+https://github.com/ArchiveTeam/grab-site/blob/master/extra_docs/pause_resume_grab_sites.sh
+
+
+== Additional reading ==
+https://github.com/ArchiveTeam/grab-site
+https://github.com/ArchiveTeam/grab-site/blob/master/extra_docs/pause_resume_grab_sites.sh

@@ -1,0 +1,22 @@
+fixing_disks.txt
+
+
+Things that might make a broken disk work.
+
+# Flash
+Flash drives (USB mass storage & SD cards mounted via USB-SD adaptor)
+
+Files missing and replaced a generic file names something weird like "USBCU."
+Try putting it in a linux box.
+Putting the a micro sd card in a SD to USB adaptor and connecting that to a raspberry pi allowed me to recover the files from the device.
+
+To wipe the bad drive for reuse:
+fdisk to list devices, create new partition table, create a partition that fills the drive.
+
+
+
+# Hard drives
+Spinning platter magnetic boxes
+
+
+
