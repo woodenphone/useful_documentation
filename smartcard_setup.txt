@@ -1,0 +1,128 @@
+## smartcard_setup.txt
+## By Ctrl-S
+## First created: 2020
+## Last modified: 2020-06-21
+
+## Adding keys to yubikey
+Note: Many commands here begin with "date; ", this is to make it easier to keep track of when you ran a command. "date" prints the current date&time, ";" ends a statement/command.
+
+## == Reset smartcard to factory settings and erase stored  GPG keys ==
+## ! ONLY TESTED ON Yubikey 5 !
+## ! USE AT OWN RISK !
+## I don't know if doing a factory reset will affect other functions of
+## your smartcard, such as FIDO, FIDO2, PIV, OTP, etc.
+$ date; gpg --card-edit # Begin editing the smartcard.
+gpg/card> help # Show commands list.
+
+Inspect card to be sure it's the one you intend to reset:
+gpg/card> list # "list all available data"
+
+gpg/card> admin # Enable card admin commands.
+gpg/card> help # Show commands list.
+
+Perform factory reset on smartcard to bring it to a known-good state
+gpg/card> factory-reset # "factory-reset  destroy all keys and data"
+Confirm that you want to reset the card
+>y
+>yes
+Confirm card has been reset by inspection:
+gpg/card> list # "list all available data"
+gpg/card>quit
+
+
+## == Set the smartcard PIN, adminPIN, & reset code ==
+## "PIN" - Day-to-day use.
+## "Admin PIN" - Load new key onto card.
+## "Reset Code" - Reset PIN attempts counter.
+## Default yubikey "PIN" is "123456"
+## Default Yubikey "Admin PIN" apin is "12345678"
+$ date; gpg --card-edit # Begin editing the smartcard.
+gpg/card> admin
+Set PIN
+gpg/card> passwd # "menu to change or unblock the PIN"
+>"1 - change PIN"
+
+Set admin PIN (used for installing secret key to card)
+gpg/card> passwd # "menu to change or unblock the PIN"
+>3 - change Admin PIN
+
+Set the Recovery Code (Used for resetting retry counter for PIN)
+gpg/card> passwd # "menu to change or unblock the PIN"
+>4 - set the Reset Code
+
+
+## == Get high-level overview of GPG keys ==
+$ date; gpg --list-keys # List publickeys.
+$ date; gpg --list-secret-keys # List secretkeys, including stubs/pointers/etc.
+$ date; gpg --card-status # Check/inspect smartcard.
+
+
+## == Import secret key from file ==
+$ cd "" # Go to the directory where we have the key files.
+$ date; gpg --import FEEDB00BCODEBEEF.1970JAN01.public.key # Import your publickey from file.
+$ date; gpg --allow-secret-key-import --import FEEDB00BCODEBEEF-20200530.masterkeys.txt # Import your secretkey from file into local keystore (You should be asked for the secretkey password at this point).
+$ date; gpg --allow-secret-key-import --import FEEDB00BCODEBEEF-20200530.subkeys.txt
+
+## == Set imported secretkey to maximum trust level ==
+It is required to set the trust level to ultimate to put it on a smartcard.
+$ date; gpg --edit-key FEEDB00BCODEBEEF
+gpg>trust # Edit trust level for the key.
+gpg>trust>5 # "5 = I trust ultimately"
+gpg>trust>y # Confirm absolute trust
+gpg>save # Save changes and exit GPG.
+
+## == Confirm import worked ==
+$ date; gpg --list-keys # Check/inspect keys.
+$ 
+$ date; gpg --list-secret-keys  | grep "ssb"; # List secretkeys we actually have. 
+There should be three subkeys listed, each with a single one of [E], [A], or [S].
+
+
+
+
+## == Move subkeys to smartcard ==
+$ date; gpg --edit-key FEEDB00BCODEBEEF # Open key for editing.
+I expect you to be moving 3 keys to the smartcard: Sign, Encrypt, & Authenticate.
+Moving the key to the smartcard will leave a stub/pointer linking to the smartcard in the local keystore.
+The same process to move a key to a smartcard is repeated 3 times in total to move all 3 subkeys.
+
+For key 1:
+gpg>key 0 # Unselect any selected keys.
+gpg> key 1 # Select key at position 1 in list.
+gpg>keytocard # MOVE selected key to smartcard.
+
+For key 2:
+gpg>key 0 # Unselect any selected keys.
+gpg> key 2 # Select key at position 2 in list.
+gpg>keytocard # MOVE selected key to smartcard.
+
+For key 3:
+gpg>key 0 # Unselect any selected keys.
+gpg> key 3 # Select key at position 3 in list.
+gpg>keytocard # MOVE selected key to smartcard.
+
+
+## == Additional smartcards ==
+To install the same key to additional smartcards, it must be reloaded from the file again.
+It MAY be needed to delete the key from GPG's keystore for reimport?
+$ date; gpg --delete-secret-keys FEEDB00BCODEBEEF # Forget/erase secret key from GPG keystore.
+$ date; gpg --delete-keys FEEDB00BCODEBEEF # Forget/erase public key from GPG keystore.
+$ rm -rf ~/.gnupg/
+
+
+## == Showing keystore ==
+Information about what keys are stored by GPG
+(See GNUPG DETAILS.md for descriptions of key type code abbreviations.)
+$ date; gpg --list-keys # List publickeys.
+$ date; gpg --list-secret-keys # List secretkeys, including stubs/pointers/etc.
+$ date; gpg --list-secret-keys | grep "sec "; # List local secretkeys.
+$ date; gpg --list-secret-keys | grep "ssb "; # List local secret subkeys (actually in keystore).
+$ date; gpg --list-secret-keys | grep "ssb>"; # List subkey stubs (Pointers to subkeys in smartcard). 
+
+
+## == Exporting SSH key ==
+How to generate the ssh public key to put onto a remote server.
+$ date; gpg --output "FEEDB00BCODEBEEF-1970JAN01.ssh-remote.key" --armour --export-ssh-key FEEDB00BCODEBEEF
+
+
+

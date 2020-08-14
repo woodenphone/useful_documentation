@@ -1,0 +1,819 @@
+Guide on creating and using GPG keys
+
+WIP (Ctrl-S's job)
+
+
+Guide for securely creating a PGP keyset.
+Currently most available smartcards support a maximum of 2048 bit RSA keys.
+Some smartcards support longer keys.
+This guide will use 2048 bit RSA keys for as much security as is currently practical.
+
+
+
+== Preparation ==
+* Determine where you want to store your secret keys.
+* I suggest in a subfolder on each USB drive.
+e.g.
+<br><code>'/media/ubuntu/keystore01/gpg.ctrl-s.2020-02-12'</code>
+<br><code>'/media/ubuntu/keystore02/gpg.ctrl-s.2020-02-12'</code>
+<br><code>'/media/ubuntu/keystore03/gpg.ctrl-s.2020-02-12'</code>
+* Decide how long you want the keys to remain valid.
+* It is supposed to be possible to increase this time at a later time, bot I don't know how this shit works yet.
+
+* Command notation quickref:
+<syntaxhighlight lang="bash">
+## Double hash symbol(##) This is a comment, just for you to read.
+$ nano somefile.txt ## <- Dollar sign ($) That was a command in BASH running as a normal user.
+$ sudo nano somefile.txt ## <- That was a regular user using sudo to run a command as root.
+# nano somefile.txt ## <- Single hash (#) sign -That was running a command a root.
+## (The root account is a superuser with complete authority over the system.)
+gpg> help ## <- That was a command inside the gpg program's subshell.
+</syntaxhighlight>
+
+
+=== Buy stuff ===
+You will need:
+* 1X Computer.
+* 1X (boot)USB flash drive 16GB+ (32GB+ USB3+ preferred).
+* 3X (keystore) USB flash drive.
+* 1X Pen/pencil.
+* 3X Pieces of paper.
+* 1+ Smartcard(s) that support PGP/GPG. (e.g. Yubico Yubikey 5 USB authenticator)
+
+
+== Create Ubuntu LiveUSB Environment ==
+* Have a USB flash drive (32GB+ USB3+ preferred).
+* Download latest ubuntu desktop ISO. Available from: https://ubuntu.com/download/desktop
+* Have a ubuntu linux environment to install the liveusb from.
+* Install the drive creation tools:
+<syntaxhighlight lang="bash">
+$ sudo add-apt-repository universe
+$ sudo add-apt-repository ppa:mkusb/ppa
+$ sudo apt-get update
+$ sudo apt install --install-recommends mkusb mkusb-nox usb-pack-efi
+</syntaxhighlight>
+Find out what storage devices are connected:
+<syntaxhighlight lang="bash">
+$ lsblk
+</syntaxhighlight>
+* Figure out which device is your flash drive.
+e.g. <code>/dev/sdh</code>
+
+
+=== Write a persistant Ubuntu LiveUSB Environment to the flash drive ===
+# Press the windows key on your keyboard to bring up the ubuntu app search screen.
+# type <code>mkusb</code>
+# Run the mkusb tool by clicking on it.
+
+# Choose: i - "Install (make a boot device)".
+# Choose: p - "Persistent live – only Debian and Ubuntu".
+# Select the ubuntu ISO file on your machine.
+# Select the device that matches your USB drive to install onto.
+# Choose just: "usb-pack-efi (default grub from ISO file)"
+# Tell the program how much space to give to the liveUSB ubuntu install for it's own storage, about half of the disk should do (4GB+).
+# Confirm everything is correct, as continuing with incorrect settings may destroy your data.
+# If everything is correct, select "go" and click "go".
+# Wait for the program to write to the USB drive.
+# Choose: "Quit"
+# Choose: "Quit"
+# Press return in the console windows to exit it.
+
+Your USB drive should now be ready to boot from.
+
+
+=== Boot liveUSB ===
+# Have machine powered off.
+# Insert bootable USB drive.
+# Hold F2 while powering on machine until BIOS menun shows up.
+# Choose to boot from the USB drive.
+# Ubuntu bootloader should autoselect persistant liveusb
+# Let machine boot into persistant liveusb
+# Ubuntu desktop environment should be displayed on your computer.
+
+
+=== Update liveUSB software ===
+Open a terminal window by pressing the three keys simultaneously: Ctrl-Alt-T
+Run the following commands:
+Check how much free space you have:
+<syntaxhighlight lang="bash"> $ df -h </syntaxhighlight>
+You should see a line containting <code>/media/ubuntu/casper-rw</code>, and it should have at least 1GB of space free.
+If this is not the case, you probably did not succeed with the previous steps.
+This alternative command should show only the disk partition we are interested in:
+<syntaxhighlight lang="bash"> $ df -h | grep casper-rw </syntaxhighlight>
+
+Enable extra apt repositories: (You will need an internet connection for this part.)
+<syntaxhighlight lang="bash">
+$ sudo add-apt-repository universe
+$ sudo add-apt-repository multiverse
+## Update installed software:
+$ sudo apt update # Update information about what software packages are available.
+$ sudo apt upgrade -y # Upgrade to the latest available version of installed packages.
+</syntaxhighlight>
+
+
+=== Enable smartcard support. (generic) ===
+(You will need an internet connection for this part.)
+<syntaxhighlight lang="bash">
+$ sudo apt-get install scdaemon # This package does all the smartcard communication!
+$ sudo systemctl start pcscd 
+$ sudo systemctl enable pcscd
+$ gpg --card-edit list # Test by looking for connected cards
+</syntaxhighlight>
+
+This is an example of expected output with a yubikey 5 with values removed for confidentiality:
+<syntaxhighlight lang="bash">
+$ gpg --card-edit list
+
+Reader ...........: [REMOVED]
+Application ID ...: [REMOVED]
+Version ..........: 3.4
+Manufacturer .....: Yubico
+Serial number ....: [REMOVED]
+Name of cardholder: [not set]
+Language prefs ...: [not set]
+Sex ..............: unspecified
+URL of public key : [not set]
+Login data .......: [not set]
+Signature PIN ....: not forced
+Key attributes ...: rsa2048 rsa2048 rsa2048
+Max. PIN lengths .: 127 127 127
+PIN retry counter : 3 0 3
+Signature counter : 0
+KDF setting ......: on
+Signature key ....: [none]
+Encryption key....: [none]
+Authentication key: [none]
+General key info..: [none]
+
+gpg/card>
+</syntaxhighlight>
+
+
+== Remove machine from network ==
+* Remove all network cables from the machine.
+* Turn off all wifi devices on the machine.
+* Test by running:
+<syntaxhighlight lang="bash">
+$ ping 8.8.8.8
+</syntaxhighlight>
+* You should fail to connect.
+
+
+== Generate keys ==
+* !!! BE OFFLINE !!!
+
+
+
+
+=== GPG Secret keys ===
+* Create master as demonstrated in the following example:
+<syntaxhighlight lang="bash">
+$  gpg --full-gen-key
+gpg (GnuPG) 2.2.12; Copyright (C) 2018 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Please select what kind of key you want:
+   (1) RSA and RSA (default)
+   (2) DSA and Elgamal
+   (3) DSA (sign only)
+   (4) RSA (sign only)
+Your selection? 1
+RSA keys may be between 1024 and 4096 bits long.
+What keysize do you want? (3072) 4096
+Requested keysize is 4096 bits
+Please specify how long the key should be valid.
+         0 = key does not expire
+      <n>  = key expires in n days
+      <n>w = key expires in n weeks
+      <n>m = key expires in n months
+      <n>y = key expires in n years
+Key is valid for? (0) 0
+Key does not expire at all
+Is this correct? (y/N) y
+
+GnuPG needs to construct a user ID to identify your key.
+
+Real name: fakename
+Email address: fake@example.com
+Comment: fake person comment
+You selected this USER-ID:
+    "fakename (fake person comment) <fake@example.com>"
+
+Change (N)ame, (C)omment, (E)mail or (O)kay/(Q)uit? o
+We need to generate a lot of random bytes. It is a good idea to perform
+some other action (type on the keyboard, move the mouse, utilize the
+disks) during the prime generation; this gives the random number
+generator a better chance to gain enough entropy.
+We need to generate a lot of random bytes. It is a good idea to perform
+some other action (type on the keyboard, move the mouse, utilize the
+disks) during the prime generation; this gives the random number
+generator a better chance to gain enough entropy.
+gpg: key BEBEAAF16847B703 marked as ultimately trusted
+gpg: directory '/home/pi/.gnupg/openpgp-revocs.d' created
+gpg: revocation certificate stored as '/home/pi/.gnupg/openpgp-revocs.d/196CBE3A87E329179CC27B5CBEBEAAF16847B703.rev'
+public and secret key created and signed.
+
+pub   rsa4096 2020-02-12 [SC]
+      196CBE3A87E329179CC27B5CBEBEAAF16847B703
+uid                      fakename (fake person comment) <fake@example.com>
+sub   rsa4096 2020-02-12 [E]
+</syntaxhighlight>
+* This master key should be 4096 bits in size.
+
+* When asked: "Please select what kind of key you want:"
+** Choose: "(1) RSA and RSA (default)"
+
+* When asked: What keysize do you want?
+** Choose: 4096
+
+* When asked: "Please specify how long the key should be valid."
+** Choose: 0 = key does not expire
+
+*A hexadecimal 'name' for the key you just generated should be displayed in the console.
+Select it, and copy the text to the clipboard by right-clicking the highlighted text and choosing "copy".
+** In the example this keyname was <code>196CBE3A87E329179CC27B5CBEBEAAF16847B703</code>
+
+
+=== Create subkeys for actual use ===
+* One subkey for each of: Encrypt, Authenticate, Sign
+* These subkeys should each be 2048 bits in size so they can fit onto all common smartcards.
+* (To create subkeys as shown you must use the <code>--expert</code> command-line argument)
+<syntaxhighlight lang="bash">
+$ gpg --expert --edit-key KEYNAME
+</syntaxhighlight>
+
+* Example of creating subkeys:
+<syntaxhighlight lang="bash">
+$ gpg --expert --edit-key 196CBE3A87E329179CC27B5CBEBEAAF16847B703
+gpg (GnuPG) 2.2.12; Copyright (C) 2018 Free Software Foundation, Inc.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+Secret key is available.
+
+gpg: checking the trustdb
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: depth: 0  valid:   1  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 1u
+sec  rsa4096/BEBEAAF16847B703
+     created: 2020-02-12  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+ssb  rsa4096/2975948F8F5E65F7
+     created: 2020-02-12  expires: never       usage: E
+[ultimate] (1). fakename (fake person comment) <fake@example.com>
+
+gpg> key 1 ## Selecting the automatically-generated subkey to delete it.
+
+sec  rsa4096/BEBEAAF16847B703
+     created: 2020-02-12  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+ssb* rsa4096/2975948F8F5E65F7
+     created: 2020-02-12  expires: never       usage: E
+[ultimate] (1). fakename (fake person comment) <fake@example.com>
+
+gpg> delkey ## Deleting the automatically-generated subkey.
+Do you really want to delete this key? (y/N) y
+
+sec  rsa4096/BEBEAAF16847B703
+     created: 2020-02-12  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+[ultimate] (1). fakename (fake person comment) <fake@example.com>
+
+gpg> addkey ## Adding a subkey to "Sign" (1/3)...
+Please select what kind of key you want:
+   (3) DSA (sign only)
+   (4) RSA (sign only)
+   (5) Elgamal (encrypt only)
+   (6) RSA (encrypt only)
+   (7) DSA (set your own capabilities)
+   (8) RSA (set your own capabilities)
+  (10) ECC (sign only)
+  (11) ECC (set your own capabilities)
+  (12) ECC (encrypt only)
+  (13) Existing key
+Your selection? 8
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions: Sign Encrypt
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? e
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions: Sign
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? q
+RSA keys may be between 1024 and 4096 bits long.
+What keysize do you want? (3072) 4096
+Requested keysize is 4096 bits
+Please specify how long the key should be valid.
+         0 = key does not expire
+      <n>  = key expires in n days
+      <n>w = key expires in n weeks
+      <n>m = key expires in n months
+      <n>y = key expires in n years
+Key is valid for? (0) 0
+Key does not expire at all
+Is this correct? (y/N) y
+Really create? (y/N) y
+We need to generate a lot of random bytes. It is a good idea to perform
+some other action (type on the keyboard, move the mouse, utilize the
+disks) during the prime generation; this gives the random number
+generator a better chance to gain enough entropy.
+
+sec  rsa4096/BEBEAAF16847B703
+     created: 2020-02-12  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+ssb  rsa4096/203E068632D2C436
+     created: 2020-02-12  expires: never       usage: S
+[ultimate] (1). fakename (fake person comment) <fake@example.com>
+
+gpg> addkey ## Adding a subkey to "Encrypt" (2/3)...
+Please select what kind of key you want:
+   (3) DSA (sign only)
+   (4) RSA (sign only)
+   (5) Elgamal (encrypt only)
+   (6) RSA (encrypt only)
+   (7) DSA (set your own capabilities)
+   (8) RSA (set your own capabilities)
+  (10) ECC (sign only)
+  (11) ECC (set your own capabilities)
+  (12) ECC (encrypt only)
+  (13) Existing key
+Your selection? 8
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions: Sign Encrypt
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? s
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions: Encrypt
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? q
+RSA keys may be between 1024 and 4096 bits long.
+What keysize do you want? (3072) 4096
+Requested keysize is 4096 bits
+Please specify how long the key should be valid.
+         0 = key does not expire
+      <n>  = key expires in n days
+      <n>w = key expires in n weeks
+      <n>m = key expires in n months
+      <n>y = key expires in n years
+Key is valid for? (0) 0
+Key does not expire at all
+Is this correct? (y/N) y
+Really create? (y/N) y
+We need to generate a lot of random bytes. It is a good idea to perform
+some other action (type on the keyboard, move the mouse, utilize the
+disks) during the prime generation; this gives the random number
+generator a better chance to gain enough entropy.
+
+sec  rsa4096/BEBEAAF16847B703
+     created: 2020-02-12  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+ssb  rsa4096/203E068632D2C436
+     created: 2020-02-12  expires: never       usage: S
+ssb  rsa4096/96F8E1C255A68B9D
+     created: 2020-02-12  expires: never       usage: E
+[ultimate] (1). fakename (fake person comment) <fake@example.com>
+
+gpg> addkey ## Adding a subkey to "Authenticate" (3/3)...
+Please select what kind of key you want:
+   (3) DSA (sign only)
+   (4) RSA (sign only)
+   (5) Elgamal (encrypt only)
+   (6) RSA (encrypt only)
+   (7) DSA (set your own capabilities)
+   (8) RSA (set your own capabilities)
+  (10) ECC (sign only)
+  (11) ECC (set your own capabilities)
+  (12) ECC (encrypt only)
+  (13) Existing key
+Your selection? 8
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions: Sign Encrypt
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? s
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions: Encrypt
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? e
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions:
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? a
+
+Possible actions for a RSA key: Sign Encrypt Authenticate
+Current allowed actions: Authenticate
+
+   (S) Toggle the sign capability
+   (E) Toggle the encrypt capability
+   (A) Toggle the authenticate capability
+   (Q) Finished
+
+Your selection? q
+RSA keys may be between 1024 and 4096 bits long.
+What keysize do you want? (3072) 4096
+Requested keysize is 4096 bits
+Please specify how long the key should be valid.
+         0 = key does not expire
+      <n>  = key expires in n days
+      <n>w = key expires in n weeks
+      <n>m = key expires in n months
+      <n>y = key expires in n years
+Key is valid for? (0) 0
+Key does not expire at all
+Is this correct? (y/N) y
+Really create? (y/N) y
+We need to generate a lot of random bytes. It is a good idea to perform
+some other action (type on the keyboard, move the mouse, utilize the
+disks) during the prime generation; this gives the random number
+generator a better chance to gain enough entropy.
+
+sec  rsa4096/FEEDB00BCODEBEEF
+     created: 2020-02-12  expires: never       usage: SC
+     trust: ultimate      validity: ultimate
+ssb  rsa4096/203E068632D2C436
+     created: 2020-02-12  expires: never       usage: S
+ssb  rsa4096/96F8E1C255A68B9D
+     created: 2020-02-12  expires: never       usage: E
+ssb  rsa4096/43685156C4472A6B
+     created: 2020-02-12  expires: never       usage: A
+[ultimate] (1). fakename (fake person comment) <fake@example.com>
+
+gpg>save ## You MUST enter the save command for the keys to be kept!
+$ ## Finished creating the subkeys.
+</syntaxhighlight>
+
+
+
+=== Store keys to backup drives ===
+* !!! BE OFFLINE !!!
+* Create a folder to store our secret keys:
+<syntaxhighlight lang="bash">
+$ mkdir -vp '/medua/ubuntu/keystore01/gpg.ctrl-s.2020-02-01'
+</syntaxhighlight>
+
+* Change to the folder where we want to save the keys to:
+<syntaxhighlight lang="bash">
+$ cd '/medua/ubuntu/keystore01/gpg.ctrl-s.2020-02-01'
+</syntaxhighlight>
+
+
+* Secret keys:
+<syntaxhighlight lang="bash">
+$ gpg --output KEYNAME-DATE.masterkeys.txt --export-secret-keys --armor KEYNAME
+$ gpg --output KEYNAME-DATE.subkeys.txt --export-secret-subkeys --armor KEYNAME
+</syntaxhighlight>
+
+* Public keys:
+<syntaxhighlight lang="bash">
+$ gpg --export --armor KEYNAME > KEYNAME-DATE.public.key
+</syntaxhighlight>
+
+* Revocation certificate:
+<syntaxhighlight lang="bash">
+$ gpg --output KEYNAME-DATE.revocation-certificate.asc --gen-revoke KEYNAME
+</syntaxhighlight>
+
+* SSH public key
+<syntaxhighlight lang="bash">
+$ date; gpg --output "FEEDB00BCODEBEEF-1970JAN01.ssh-remote.key" --armour --export-ssh-key FEEDB00BCODEBEEF
+</syntaxhighlight>
+
+
+== Exporting SSH key ==
+How to generate the ssh public key to put onto a remote server.
+<syntaxhighlight lang="bash">
+$ date; gpg --output "FEEDB00BCODEBEEF-1970JAN01.ssh-remote.key" --armour --export-ssh-key FEEDB00BCODEBEEF
+</syntaxhighlight>
+
+
+== Smartcards ==
+
+== Reset smartcard to factory settings and erase stored  GPG keys ==
+* ! ONLY TESTED ON Yubikey 5 !
+* ! USE AT OWN RISK !
+* I don't know if doing a factory reset will affect other functions of your smartcard, such as FIDO, FIDO2, PIV, OTP, etc.
+<syntaxhighlight lang="bash">
+$ date; gpg --card-edit # Begin editing the smartcard.
+gpg/card> help # Show commands list.
+
+## Inspect card to be sure it's the one you intend to reset:
+gpg/card> list # "list all available data"
+
+gpg/card> admin # Enable card admin commands.
+gpg/card> help # Show commands list.
+
+## Perform factory reset on smartcard to bring it to a known-good state
+gpg/card> factory-reset # "factory-reset  destroy all keys and data"
+## Confirm that you want to reset the card
+>y
+>yes
+## Confirm card has been reset by inspection:
+gpg/card> list # "list all available data"
+gpg/card>quit
+</syntaxhighlight>
+
+=== Set the smartcard PIN, adminPIN, & reset code ===
+*The PIN, AdminPIN, and ResetCode can be alphanumerical passphrases.
+  (a-z, A-Z, 0-9, space, etc.)
+* "PIN" - Day-to-day use.
+* "Admin PIN" - Load new key onto card.
+* "Reset Code" - Reset PIN attempts counter.
+* The Default yubikey "PIN" is "123456"
+* The Default Yubikey "Admin PIN" apin is "12345678"
+* Begin editing the smartcard.
+<syntaxhighlight lang="bash">
+$ date; gpg --card-edit # Begin editing the smartcard.
+gpg/card> admin
+</syntaxhighlight>
+
+* Set PIN
+<syntaxhighlight lang="bash">
+gpg/card> passwd # "menu to change or unblock the PIN"
+>"1 - change PIN"
+</syntaxhighlight>
+
+* Set admin PIN (used for installing secret key to card)
+<syntaxhighlight lang="bash">
+gpg/card> passwd # "menu to change or unblock the PIN"
+>3 - change Admin PIN
+</syntaxhighlight>
+
+* Set the Recovery Code (Used for resetting retry counter for PIN)
+<syntaxhighlight lang="bash">
+gpg/card> passwd # "menu to change or unblock the PIN"
+>4 - set the Reset Code
+</syntaxhighlight>
+
+=== Smartcard PIN codes ===
+* You need to set two PIN codes for your smartcard.
+<br>A user PIN and an admin PIN
+
+* Generate a random number to use as a PIN for your smartcard
+(apg is a linux tool to generate random passwords https://linux.die.net/man/1/apg )
+<syntaxhighlight lang="bash">
+## apg (Password generator program)
+## -a 1 (Use supplied parameters)
+## -M N (Use numerals only)
+## -m 10 (Minimum 8 characters long)
+## -x 10 (Maximum 8 characters long)
+$ apg -a 1 -M N -m 8 -x 8
+86187171
+65856553
+45100116
+18826756
+02283057
+10274420
+</syntaxhighlight>
+* Write down the user PIN code on your paper.
+<code>User PIN: USER-PIN-HERE</code>
+<br>The user PIN is required to use the stored keys.
+
+* Write down the admin PIN code on your paper.
+<code>admin PIN: ADMIN-PIN-HERE</code>
+<br>The admin pin is used to edit the card.
+
+* Store copies of these codes in safe places where you will not lose them and nobody can read them.
+* You will not be able to use the smartcard without the correct code.
+
+* Change the smartcard's user PIN.
+<syntaxhighlight lang="bash">
+$ gpg --card-edit
+gpg/card> admin ## Card admin menu.
+gpg/card> passwd ## Change card password(s).
+gpg/card> 1 ## 1 - change PIN.
+gpg/card> q ## Exit PIN edit submenu.
+gpg/card> list ## Display card information.
+gpg/card> quit ## Exit GPG.
+</syntaxhighlight>
+
+* Change the smartcard's admin PIN
+<syntaxhighlight lang="bash">
+$ gpg --card-edit
+gpg/card> admin ## Card admin menu.
+gpg/card> passwd ## Change card password(s).
+gpg/card> 3 ## 3 - change Admin PIN.
+gpg/card> q ## Exit PIN edit submenu.
+gpg/card> list ## Display card information.
+gpg/card> quit ## Exit GPG.
+</syntaxhighlight>
+
+
+=== Reload the secret key and subkeys from the backup file ===
+This is required if you want to prepare more than one smartcard.
+
+
+==== Delete GPG keystore ====
+* Do not do this unless you are sure you have successfully backed up your keys.
+* To install the same key to additional smartcards, it must be reloaded from the file again.
+* It MAY be needed to delete the key from GPG's keystore for reimport?
+<syntaxhighlight lang="bash">
+$ date; gpg --delete-secret-keys FEEDB00BCODEBEEF # Forget/erase secret key from GPG keystore.
+$ date; gpg --delete-keys FEEDB00BCODEBEEF # Forget/erase public key from GPG keystore.
+$ date; rm -rf ~/.gnupg/ # Erase GPG keystore alltogether.
+</syntaxhighlight>
+
+
+==== Import secret key from file ====
+<syntaxhighlight lang="bash">
+$ cd "/path/to/my/key/backup/dir/" # Go to the directory where we have the key files.
+$ date; gpg --import FEEDB00BCODEBEEF.1970JAN01.public.key # Import your publickey from file.
+$ date; gpg --allow-secret-key-import --import FEEDB00BCODEBEEF-20200530.masterkeys.txt # Import your secretkey from file into local keystore (You should be asked for the secretkey password at this point).
+$ date; gpg --allow-secret-key-import --import FEEDB00BCODEBEEF-20200530.subkeys.txt
+</syntaxhighlight>
+
+
+==== Set imported secretkey to maximum trust level ====
+* It is required to set the trust level to ultimate to put it on a smartcard.
+<syntaxhighlight lang="bash">
+$ date; gpg --edit-key FEEDB00BCODEBEEF
+gpg>trust # Edit trust level for the key.
+gpg>trust>5 # "5 = I trust ultimately"
+gpg>trust>y # Confirm absolute trust
+gpg>save # Save changes and exit GPG.
+</syntaxhighlight>
+
+
+
+
+=== Move the key to smartcard ===
+* !!! BE OFFLINE !!!
+* Insert your smartcard device.
+* Transfer each of the three subkeys to the smartcard (Sign, Encrypt, Authenticate)
+<syntaxhighlight lang="bash">
+$ gpg --card-edit
+gpg>key 1 ## Toggle select for the key at position 1 in the list.
+gpg> keytocard # Send the key to the smartcard.
+gpg>key 1 ## Toggle select for the key at position 1 in the list.
+</syntaxhighlight>
+
+<syntaxhighlight lang="bash">
+$ gpg --card-edit
+gpg>key 2 ## Toggle select for the key at position 2 in the list.
+gpg> keytocard # Send the key to the smartcard.
+gpg>key 2 ## Toggle select for the key at position 2 in the list.
+</syntaxhighlight>
+
+<syntaxhighlight lang="bash">
+$ gpg --card-edit
+gpg>key 3 ## Toggle select for the key at position 3 in the list.
+gpg> keytocard # Send the key to the smartcard.
+gpg>key 3 ## Toggle select for the key at position 3 in the list.
+</syntaxhighlight>
+
+* To add the key to another smartcard, you must import it from the backup.
+<syntaxhighlight lang="bash">
+$ gpg --import KEYNAME-DATE.masterkeys.txt
+$ gpg --import KEYNAME-DATE.subkeys.txt
+$ gpg --edit-key KEYNAME
+gpg> trust ## Edit the trust level for this key.
+gpg> 5 ## Assign ultimate trust to our own key.
+gpg> y ## Confirm the trust setting.
+</syntaxhighlight>
+
+
+
+
+== Erase keys from liveusb ==
+* !!! BE OFFLINE !!!
+* Remove the GPG keystore as an added precaution.
+<syntaxhighlight lang="bash">
+$ rm -rf ~/.gnupg*
+</syntaxhighlight>
+
+
+
+=== Setup public key side ===
+Copy and paste the text in the ssh-remote.key file from the earlier steps into the `~/.ssh/authorized_keys` file on the machine you intend to connect to.
+
+
+=== Set up key on machine we want to SSH to ===
+<syntaxhighlight lang="bash">
+## TODO
+</syntaxhighlight>
+
+== Using multiple cards ==
+This command tells GPG to associate keys it has with copies of those keys on a connected smartcard.
+The same command works on both Linux and Windows.
+<syntaxhighlight lang="bash">
+$ gpg-connect-agent "scd serialno" "learn --force" /bye
+</syntaxhighlight>
+<syntaxhighlight lang="cmd">
+> gpg-connect-agent "scd serialno" "learn --force" /bye
+</syntaxhighlight>
+https://github.com/drduh/YubiKey-Guide#using-multiple-keys
+
+== Sources ==
+Guide to set up Ubuntu on a USB flash drive (Full persistant install to USB drive):
+
+https://www.howtogeek.com/howto/14912/create-a-persistent-bootable-ubuntu-usb-flash-drive/
+
+* Guide to write Ubuntu installer to USB drive (Does not support software install wituout modifications, see other guide):
+
+https://ubuntu.com/tutorials/try-ubuntu-before-you-install#1-getting-started
+
+* Ubuntu download page:
+
+https://ubuntu.com/download/desktop
+
+* Guides to set up a Yubikey device:
+
+https://support.yubico.com/support/solutions/articles/15000006420-using-your-yubikey-with-openpgp
+
+https://withinboredom.info/blog/2017/11/18/signing-commits-ssh-with-yubikey-and-windows/
+
+https://zeos.ca/post/2018/gpg-yubikey5/
+
+* Yubikey troubleshooting pages:
+
+https://support.yubico.com/support/solutions/articles/15000014892-troubleshooting-gpg-no-such-device-
+
+* GPG key import/export:
+
+https://unix.stackexchange.com/questions/184947/how-to-import-secret-gpg-key-copied-from-one-machine-to-another
+
+https://msol.io/blog/tech/back-up-your-pgp-keys-with-gpg/
+
+* Other guides:
+
+https://github.com/tomlowenthal/documentation/blob/master/gpg/smartcard-keygen.md
+
+https://blogs.fsfe.org/jens.lechtenboerger/2013/04/19/how-to-set-up-your-fellowship-card/
+
+https://gist.github.com/ageis/14adc308087859e199912b4c79c4aaa4
+
+https://spin.atomicobject.com/2013/11/24/secure-gpg-keys-guide/
+
+https://support.yubico.com/support/solutions/articles/15000006420-using-your-yubikey-with-openpgp
+
+https://www.linode.com/docs/security/authentication/gpg-key-for-ssh-authentication/
+
+https://0day.work/using-a-yubikey-for-gpg-and-ssh/
+
+https://xladius.com/opsec/2018/06/25/using-yubikeys-for-openpgp
+
+https://oychang.com/posts/gpg/notes-on-yubikey-neo.html
+
+https://github.com/drduh/YubiKey-Guide
+
+* Misc of interest:
+
+https://www.dongleauth.info/
+
+https://www.dongleauth.info/dongles/
+
+https://www.nitrokey.com/documentation/installation
+
+https://www.nitrokey.com/documentation/frequently-asked-questions-faq#how-to-use-the-nitrokey-with-multiple-computers
+
+https://www.fsij.org/doc-gnuk/gnuk-passphrase-setting.html#
+
+https://security.stackexchange.com/questions/45094/smart-card-gnupg-what-is-stored-in-my-keyring-how-to-adopt-smart-card
+
+https://stackoverflow.com/questions/46689885/how-to-get-public-key-from-an-openpgp-smart-card-without-using-key-servers
+
+https://www.gnupg.org/howtos/card-howto/en/smartcard-howto-single.html
+
+https://crypto.stackexchange.com/questions/43223/are-additional-pgp-subkeys-still-needed-for-smartcards
+
+https://stackoverflow.com/questions/48016033/how-do-i-encrypt-an-email-using-a-yubikey
